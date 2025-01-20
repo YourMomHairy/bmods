@@ -1,8 +1,9 @@
+modVersion = "s.v1.0"
 module.exports = {
   data: { name: "Get Multiple Global Datas" },
   category: "Global Data",
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/Mods/Actions",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia"
   },
@@ -47,6 +48,10 @@ module.exports = {
         },
       },
     },
+    {
+      element: "text",
+      text: modVersion,
+    }
   ],
   subtitle: (values) => {
     return `Label: ${values.label}, Retrieve ${values.retrievelist.length} global datas.`;

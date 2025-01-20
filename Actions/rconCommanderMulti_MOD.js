@@ -1,10 +1,12 @@
+modVersion = "s.v1.2"
 module.exports = {
   data: {
     name: "Extended RCON MultiCommander"
   },
+  aliases:["Send Multiple RCON Commands v2"],
   category: "RCON",
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/Mods/Actions",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia",
   },
@@ -72,9 +74,20 @@ module.exports = {
               storeAs: "actions",
               name: "On Response, Run"
             },
+            {
+              element: "toggle",
+              storeAs: "logging",
+              name: "Log To Console For Debugging?",
+              true: "Yes",
+              false: "No"
+            },
           ]
         }
       }
+    },
+    {
+      element: "text",
+      text: modVersion,
     }
   ],
 
@@ -85,6 +98,7 @@ module.exports = {
   compatibility: ["Any"],
 
   async run(values, interaction, client, bridge){
+    await client.getMods().require("rcon")
     const Rcon = require("rcon")
 
     for (let rconDetails of values.rconList){
@@ -99,7 +113,7 @@ module.exports = {
         const ipPort = bridge.transf(rconDetails.data.ipPort)
         const rconPw = bridge.transf(rconDetails.data.rconPassword)
         const rconCm = bridge.transf(rconDetails.data.rconCommand)
-        const logging = bridge.transf(rconDetails.data.logging)
+        const logging = rconDetails.data.logging
 
         const rconServer = new Rcon(ipAddr, ipPort, rconPw, config)
         rconServer.setTimeout(() => {

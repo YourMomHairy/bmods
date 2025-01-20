@@ -1,10 +1,12 @@
+modVersion = "s.v1.2"
 module.exports = {
   data: {
     name: "Extended RCON Commander"
   },
+  aliases: ["Send RCON Command v2"],
   category: "RCON",
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/Mods/Actions",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia",
   },
@@ -60,6 +62,10 @@ module.exports = {
       true: "Yes",
       false: "No"
     },
+    {
+      element: "text",
+      text: modVersion,
+    }
   ],
 
   subtitle: (values) => {
@@ -69,6 +75,7 @@ module.exports = {
   compatibility: ["Any"],
 
   async run(values, interaction, client, bridge){
+    await client.getMods().require("rcon")
     const Rcon = require("rcon")
 
     const config = {
@@ -80,7 +87,7 @@ module.exports = {
     const ipPort = bridge.transf(values.ipPort)
     const rconPw = bridge.transf(values.rconPassword)
     const rconCm = bridge.transf(values.rconCommand)
-    const logging = bridge.transf(values.logging)
+    const logging = values.logging
 
     const rconServer = new Rcon(ipAddr, ipPort, rconPw, config)
     rconServer.setTimeout(() => {

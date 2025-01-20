@@ -1,13 +1,14 @@
 const jsonData = require('../data.json');
 const commands = jsonData.commands;
 const txtCmdPrefix = jsonData.prefix;
+modVersion = "s.v1.0"
 
 module.exports = {
   data: {
     name: "Get Command Info",
   },
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/Mods/Actions",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia",
   },
@@ -107,6 +108,10 @@ module.exports = {
       element: "store",
       storeAs: "cmdfldr",
       name: "Command BMD Folder ID",
+    },
+    {
+      element: "text",
+      text: modVersion,
     }
   ],
 

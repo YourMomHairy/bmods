@@ -1,14 +1,16 @@
 const jsonData = require('../data.json');
 const commands = jsonData.commands;
 const prefix = jsonData.prefix;
+modVersion = "s.v1.1"
 
 module.exports = {
   data: {
-    name: "Get Command Aliases",
+    name: "",
   },
+  aliases: ["Get Command Aliases"],
   category: "Bot",
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/Mods/Actions",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia",
   },
@@ -29,6 +31,10 @@ module.exports = {
       text: `<div style="font-size: 20px; color: red; text-align: center;">
       This action is deprecated, use "Get Command Info" for a more robust & feature rich option.
       </div>`
+    },
+    {
+      element: "text",
+      text: modVersion,
     }
   ],
 

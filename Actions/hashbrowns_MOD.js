@@ -1,12 +1,15 @@
-const crypto = require('node:crypto');
-acpthashes = crypto.getHashes().toString(`, `);
+let cryptoCache = require('node:crypto');
+hashingAlgorithms = cryptoCache.getHashes();
+modVersion = "s.v1.2"
 
 module.exports = {
   data: {
-    name: "Hash"
+    name: "Hash Text",
+    algorithm: "sha256"
   },
+  aliases: ["Encrypt Text"],
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/Mods/Actions",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia"
   },
@@ -19,10 +22,16 @@ module.exports = {
       name: "Text",
     },
     {
-      element: "input",
+      element: "dropdown",
       storeAs: "algorithm",
       name: "Hashing Algorithm",
-      placeholder: "If left empty, SHA256 will be used."
+      choices: (() => {
+        let dropdownOptions = []
+        hashingAlgorithms.forEach(algorithm => {
+          dropdownOptions.push({name: `${algorithm}`, field: false})
+        });
+        return dropdownOptions
+      })()
     },
     "-",
     {
@@ -30,23 +39,23 @@ module.exports = {
       storeAs: "store",
       name: "Store Hashed String As"
     },
-    "-",
     {
       element: "text",
-      text: `Supported algorithms: ${acpthashes}`,
+      text: modVersion,
     }
   ],
   
   subtitle: (values) => {
-    let algorythm = values.algorithm || `SHA256`;
-    return `Hash text with ${algorythm} algorithm`
+    return `Hash text with ${values.algorithm} algorithm`
   },
 
   compatibility: ["Any"],
 
   async run (values, message, client, bridge) {
-    let oriText = bridge.transf(values.toHash);
-    let hashAlgorithm = bridge.transf(values.algorithm) || `SHA256`;
+    await client.getMods().require("node:crypto")
+    const crypto = require("node:crypto")
+    let oriText = bridge.transf(values.toHash)
+    let hashAlgorithm = bridge.transf(values.algorithm)
     
     hashedTxt = crypto.createHash(hashAlgorithm).update(oriText).digest('hex');
     bridge.store(values.store, hashedTxt);

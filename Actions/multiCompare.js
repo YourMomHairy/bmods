@@ -1,3 +1,4 @@
+modVersion = "s.v1.0 | aceqol"
 module.exports = {
   data: {
     name: "Multiple Comparisons",
@@ -5,7 +6,7 @@ module.exports = {
   category: "Control",
 
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/QOL%20Edits",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/QOLs",
     creator: "Acedia QOLs",
     donate: "https://ko-fi.com/slothyacedia",
   },
@@ -74,6 +75,10 @@ module.exports = {
         }
       }
     },
+    {
+      element: "text",
+      text: modVersion,
+    }
   ],
 
   subtitle: (data) => {

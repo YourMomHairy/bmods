@@ -1,9 +1,10 @@
+modVersion = "s.v1.2"
 module.exports = {
   data: {
     name: "Number Conversions"
   },
   info: {
-    source: "https://github.com/slothyace/bcx/tree/main/Mods/Actions",
+    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia"
   },
@@ -33,6 +34,10 @@ module.exports = {
       element: "store",
       storeAs: "store",
       name: "Store Result As"
+    },
+    {
+      element: "text",
+      text: modVersion,
     }
   ],
 
@@ -43,7 +48,7 @@ module.exports = {
   compatibility: ["Any"],
 
   async run(values, message, client, bridge) {
-    const { evaluate } = require("mathjs");
+    const { evaluate } = await client.getMods().require("mathjs");
     let conversionType = bridge.transf(values.convType.type);
     
     try {
