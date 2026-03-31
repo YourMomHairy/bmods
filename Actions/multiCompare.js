@@ -1,4 +1,4 @@
-modVersion = "s.v1.0 | aceqol"
+modVersion = "v1.0.2 | AceQOLs"
 module.exports = {
   data: {
     name: "Multiple Comparisons",
@@ -6,16 +6,16 @@ module.exports = {
   category: "Control",
 
   info: {
-    source: "https://github.com/slothyace/bmods-acedia/tree/main/QOLs",
+    source: "https://github.com/slothyacedia/bmods-acedia/tree/main/QOLs",
     creator: "Acedia QOLs",
     donate: "https://ko-fi.com/slothyacedia",
   },
-  
+
   UI: [
     {
       element: "input",
       storeAs: "input",
-      name: "Input Value"
+      name: "Input Value",
     },
     "-",
     {
@@ -23,14 +23,14 @@ module.exports = {
       storeAs: "cases",
       name: "Comparisons",
       types: {
-        comparison: "Comparison"
+        comparison: "Comparison",
       },
       max: 200,
       UItypes: {
         comparison: {
           data: {},
           name: "Comparison",
-          preview: "`${option.data.comparator} ${option.data.value}`",
+          preview: "`${option.data.comparator||''} ${option.data.value||''}`",
           UI: [
             {
               element: "dropdown",
@@ -38,47 +38,47 @@ module.exports = {
               name: "Comparator",
               choices: [
                 {
-                  name: "="
+                  name: "=",
                 },
                 {
-                  name: "!="
+                  name: "!=",
                 },
                 {
-                  name: "<"
+                  name: "<",
                 },
                 {
-                  name: ">"
-                }
-              ]
+                  name: ">",
+                },
+              ],
             },
             "_",
             {
               element: "input",
               storeAs: "value",
-              name: "Compare Input Value To"
+              name: "Compare Input Value To",
             },
             "-",
             {
               element: "condition",
               storeAs: "true",
               storeActionsAs: "trueActions",
-              name: "If True"
+              name: "If True",
             },
             "-",
             {
               element: "condition",
               storeAs: "false",
               storeActionsAs: "falseActions",
-              name: "If False"
-            }
-          ]
-        }
-      }
+              name: "If False",
+            },
+          ],
+        },
+      },
     },
     {
       element: "text",
       text: modVersion,
-    }
+    },
   ],
 
   subtitle: (data) => {
@@ -87,32 +87,30 @@ module.exports = {
   compatibility: ["Any"],
 
   async run(values, message, client, bridge) {
-
-    let firstValue = bridge.transf(values.input);
+    let firstValue = bridge.transf(values.input)
 
     for (let c in values.cases) {
-      let comparison = values.cases[c].data;
-      let secondValue = bridge.transf(comparison.value);
-      let matchesCriteria = false;
+      let comparison = values.cases[c].data
+      let secondValue = bridge.transf(comparison.value)
+      let matchesCriteria = false
 
       switch (comparison.comparator) {
         case "!=":
-          matchesCriteria = firstValue != secondValue;
-          break;
+          matchesCriteria = firstValue != secondValue
+          break
 
         case "=":
-          matchesCriteria = firstValue == secondValue;
-          break;
+          matchesCriteria = firstValue == secondValue
+          break
 
         case ">":
-          matchesCriteria = firstValue > secondValue;
-          break;
+          matchesCriteria = firstValue > secondValue
+          break
 
         case "<":
-          matchesCriteria = firstValue < secondValue;
-          break;
+          matchesCriteria = firstValue < secondValue
+          break
       }
-
 
       if (matchesCriteria == true) {
         await bridge.call(comparison.true, comparison.trueActions)
@@ -121,4 +119,4 @@ module.exports = {
       }
     }
   },
-};
+}

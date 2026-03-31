@@ -1,11 +1,11 @@
-modVersion = "s.v1.0"
+modVersion = "v2.0.0"
 module.exports = {
   data: {
-    name: "Toggle"
+    name: "Toggle Actions",
   },
   aliases: [],
   info: {
-    source: "https://github.com/slothyace/bmods-acedia/tree/main/QOLs",
+    source: "https://github.com/slothyacedia/bmods-acedia/tree/main/QOLs",
     creator: "Acedia QOLs",
     donate: "https://ko-fi.com/slothyacedia",
   },
@@ -15,14 +15,15 @@ module.exports = {
     {
       element: "toggle",
       storeAs: "toggle",
-      name: "Set Value",
-      true: "True",
-      false: "False"
+      name: "Run Actions",
+      true: "Run",
+      false: "Don't Run",
     },
     {
-      element: "store",
-      storeAs: "store",
-      name: "Store As",
+      element: "actions",
+      storeAs: "actions",
+      name: "Run Actions",
+      large: false,
     },
     {
       element: "largeInput",
@@ -32,16 +33,25 @@ module.exports = {
     {
       element: "text",
       text: modVersion,
-    }
+    },
   ],
 
-  subtitle: (values, constants) =>{
-    return `Set ${constants.variable(values.store)} to ${values.toggle}`
+  subtitle: (values, constants) => {
+    return `${values.toggle}: ${values.comment}`
   },
 
   compatibility: ["Any"],
 
-  async run(values, message, client, bridge){
-    bridge.store(values.store, values.toggle)
-  }
+  async run(values, message, client, bridge) {
+    if (values.toggle == true) {
+      let promise = new Promise(async (res) => {
+        await bridge.runner(values.actions)
+        res()
+      })
+      promise.catch((err) => console.log(`[${this.data.name}] `, err))
+      await promise
+    } else {
+      // noop
+    }
+  },
 }

@@ -1,4 +1,4 @@
-modVersion = "s.v1.5"
+modVersion = "v1.5.0"
 module.exports={
   data: {
     name: "YouTube Video Search v2"
@@ -87,7 +87,9 @@ module.exports={
   compatibility: ["Any"],
 
   async run(values, message, client, bridge){
-    await client.getMods().require("yt-search")
+    for (const moduleName of this.modules){
+      await client.getMods().require(moduleName)
+    }
     let search = require("yt-search")
     let result = await search(bridge.transf(values.searchFor))
     let position = 0

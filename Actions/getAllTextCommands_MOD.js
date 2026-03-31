@@ -1,11 +1,11 @@
-modVersion = "s.v1.0"
+modVersion = "v1.0.0"
 module.exports = {
   data: {
     name: "Get All Text Command Names",
   },
   category: "Bot",
   info: {
-    source: "https://github.com/slothyace/bmods-acedia/tree/main/Actions",
+    source: "https://github.com/slothyacedia/bmods-acedia/tree/main/Actions",
     creator: "Acedia",
     donate: "https://ko-fi.com/slothyacedia",
   },
@@ -18,12 +18,12 @@ module.exports = {
     {
       element: "store",
       storeAs: "idStore",
-      name: "Store Command Custom Id List As"
+      name: "Store Command Custom Id List As",
     },
     {
       element: "text",
       text: modVersion,
-    }
+    },
   ],
 
   subtitle: (data, constants) => {
@@ -33,20 +33,20 @@ module.exports = {
   compatibility: ["Any"],
 
   async run(values, message, client, bridge) {
-    const jsonData = require('../data.json');
-    const commands = jsonData.commands;
+    const jsonData = require("../data.json")
+    const commands = jsonData.commands
 
-    const commandList = [];
+    const commandList = []
     const idList = []
 
-    commands.forEach(command => {
-      if (command.trigger === 'textCommand') {
+    commands.forEach((command) => {
+      if (command.trigger === "textCommand") {
         commandList.push(command.name)
         idList.push(command.customId)
       }
-    });
+    })
 
     bridge.store(values.store, commandList)
     bridge.store(values.idStore, idList)
-  }
-};
+  },
+}

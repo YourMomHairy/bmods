@@ -1,0 +1,313 @@
+modVersion = "v1.3.2"
+module.exports = {
+  data: {
+    name: "Lavalink Multi Connection",
+  },
+  aliases: [],
+  modules: ["lavalink-client"],
+  category: "Lavalink Music",
+  info: {
+    source: "https://github.com/slothyacedia/bmods-acedia/tree/main/Actions",
+    creator: "Acedia",
+    donate: "https://ko-fi.com/slothyacedia",
+  },
+  UI: [
+    {
+      element: "menu",
+      storeAs: "nodes",
+      name: "Nodes",
+      types: { node: "node" },
+      max: 50,
+      UItypes: {
+        node: {
+          data: { enabled: true },
+          name: "Node",
+          preview: "`${option.data.host||''}:${option.data.port||''} (${option.data.nodeName||''})`",
+          UI: [
+            {
+              element: "input",
+              name: "Host",
+              storeAs: "host",
+            },
+            {
+              element: "input",
+              name: "Port",
+              storeAs: "port",
+            },
+            {
+              element: "input",
+              name: "Password",
+              storeAs: "password",
+            },
+            {
+              element: "input",
+              name: "Node Name",
+              storeAs: "nodeName",
+              placeholder: "The Name Of Your Lavalink Server",
+            },
+            "-",
+            {
+              element: "toggle",
+              storeAs: "enabled",
+              name: "Enabled",
+            },
+          ],
+        },
+      },
+    },
+    "-",
+    {
+      element: "input",
+      name: "Destroy Player Milliseconds",
+      storeAs: "destroyAfterMs",
+      placeholder: "Leave Empty To Not Leave Voice Channel When Queue Ends",
+    },
+    "_",
+    {
+      element: "input",
+      name: "Retry Bad Node Connection Every # Minutes",
+      storeAs: "retryAfterMinutes",
+      placeholder: "30",
+    },
+    "_",
+    {
+      element: "toggle",
+      storeAs: "logging",
+      name: "Enable Non-essential Logging",
+    },
+    "-",
+    {
+      element: "text",
+      text: modVersion,
+    },
+  ],
+
+  subtitle: (values, constants, thisAction) => {
+    // To use thisAction, constants must also be present
+    return `Attempt Connection To ${values.nodes.length} Lavalink Servers`
+  },
+
+  compatibility: ["Any"],
+
+  async run(values, message, client, bridge) {
+    const { LavalinkManager } = await client.getMods().require("lavalink-client")
+
+    if (client.lavalink) {
+      console.log(`[${this.data.name}] Lavalink Already Initialized`)
+      return
+    }
+
+    let nodes = []
+    for (let [index, node] of values.nodes.entries()) {
+      let nodeData = node.data
+      let enabled = nodeData.enabled !== false
+
+      if (!nodeData.password || !nodeData.host || !nodeData.port || !nodeData.nodeName) {
+        console.log(`[${this.data.name}] Missing Credentials For Node #${index + 1}`)
+        continue
+      }
+
+      if (enabled == false) {
+        continue
+      }
+
+      let host = bridge.transf(nodeData.host)
+      let port = Number(bridge.transf(nodeData.port))
+      let authorization = bridge.transf(nodeData.password)
+      let id = bridge.transf(nodeData.nodeName)
+      nodes.push({ host, port, authorization, id })
+    }
+
+    const botData = require(`../data.json`)
+    const appName = botData.name || `BMD Bot`
+    let destroyAfterMs
+
+    if (values.destroyAfterMs) {
+      destroyAfterMs = Number(bridge.transf(values.destroyAfterMs))
+    }
+
+    try {
+      client.lavalink = new LavalinkManager({
+        nodes,
+        autoSkip: true,
+        sendToShard: (guildId, payload) => {
+          const shardIDs = client.shards.options.shardIDs
+          const shardCount = shardIDs.length || 1
+          const shardId = Number((BigInt(guildId) >> 22n) % BigInt(shardCount))
+          const shard = client.shards.get(shardId)
+
+          if (!shard) {
+            console.warn(`[${this.data.name}] Shard ${shardId} Not Found For Guild ${guildId}`)
+            return
+          }
+
+          try {
+            shard.ws.send(JSON.stringify(payload))
+          } catch (err) {
+            console.error(`[${this.data.name}] Failed To Send Payload To Shard:`, err)
+          }
+        },
+        client: {
+          id: "placeholder",
+          username: appName,
+        },
+        playerOptions: {
+          applyVolumeAsFilter: false,
+          clientBasedPositionUpdateInterval: 150,
+          defaultSearchPlatform: `ytsearch`,
+          volumeDecrementer: 0.75,
+          onDisconnect: {
+            autoReconnect: false,
+            destroyPlayer: false,
+          },
+          onEmptyQueue: {
+            destroyAfterMs,
+            autoPlayFunction: null,
+          },
+        },
+      })
+
+      client.lavalink.bmdManager = {
+        states: {
+          active: new Map(),
+          bad: new Map(),
+        },
+        reconnectAttempts: new Map(),
+      }
+
+      client.lavalink.nodeManager
+        .on("connect", (node) => {
+          console.log(`[${this.data.name}] Connected To Lavalink Node: ${node.id}`)
+          client.lavalink.bmdManager.states.bad.delete(node.id)
+          client.lavalink.bmdManager.states.active.set(node.id, node)
+          client.lavalink.bmdManager.reconnectAttempts.delete(node.id)
+        })
+        .on("disconnect", (node, reason) => {
+          if (values.logging) {
+            console.log(`[${this.data.name}] Disconnected From Lavalink Node: ${node.id}, Reason ${JSON.stringify(reason)}`)
+          }
+
+          if (reason.code == 1000) {
+            client.lavalink.bmdManager.states.active.delete(node.id)
+            return
+          }
+
+          let disconnectReason = reason?.reason?.toLowerCase() || ""
+          if (disconnectReason.includes("proxy")) {
+            if (values.logging) {
+              console.log(`[${this.data.name}] Lavalink Node ${node.id} Connection Failed Due To Proxy Issues, Attempting Connection At A Later Time`)
+            }
+            client.lavalink.bmdManager.states.active.delete(node.id)
+            client.lavalink.bmdManager.states.bad.set(node.id, {
+              node,
+              movedAt: Date.now(),
+              details: {
+                host: node.options.host,
+                port: node.options.port,
+                authorization: node.options.authorization,
+                id: node.id,
+              },
+            })
+            node.disconnect()
+            return
+          }
+
+          let attempts = (client.lavalink.bmdManager.reconnectAttempts.get(node.id) ?? 0) + 1
+          client.lavalink.bmdManager.reconnectAttempts.set(node.id, attempts)
+          if (attempts < 3) {
+            setTimeout(async () => {
+              if (!node.connected) {
+                try {
+                  if (values.logging) {
+                    console.log(`[${this.data.name}] Attempting To Reconnect ${node.id}, Attempt ${attempts}`)
+                  }
+                  await node.connect()
+                } catch (err) {
+                  if (values.logging) {
+                    console.log(`[${this.data.name}] Reconnect ${node.id} Attempt Failed: ${err}`)
+                  }
+                }
+              }
+            }, 7500)
+            return
+          } else {
+            client.lavalink.bmdManager.states.active.delete(node.id)
+            client.lavalink.bmdManager.states.bad.set(node.id, {
+              node,
+              movedAt: Date.now(),
+              details: {
+                host: node.options.host,
+                port: node.options.port,
+                authorization: node.options.authorization,
+                id: node.id,
+              },
+            })
+            console.log(`[${this.data.name}] Lavalink Node ${node.id} Connection Failed After ${attempts} Attempts, Attempting Connection At A Later Time`)
+            node.disconnect()
+          }
+        })
+        .on("error", (node, error) => {
+          console.log(`[${this.data.name}] Lavalink Node ${node.id} Error: ${error}`)
+        })
+
+      client.on("packet", (packet) => {
+        if (packet.t === `VOICE_STATE_UPDATE` || packet.t === `VOICE_SERVER_UPDATE`) {
+          client.lavalink.sendRawData(packet)
+        }
+      })
+
+      while (!client.ready) {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+
+      console.log(`[${this.data.name}] Initializing Lavalink...`)
+      client.lavalink.options.client.id = client.user.id
+
+      try {
+        client.lavalink.init(client.user)
+      } catch (err) {
+        console.log(`[${this.data.name}] Init Failed: ${err}`)
+      }
+
+      let retryInterval = (Number(bridge.transf(values.retryAfterMinutes) || 30) || 30) * 60 * 1000
+      setInterval(async () => {
+        for (const [id, nodeInfo] of client.lavalink.bmdManager.states.bad) {
+          let details = nodeInfo.details
+          let movedAt = nodeInfo.movedAt
+          let prevNode = nodeInfo.node
+          if (prevNode.connected || Date.now() - movedAt < retryInterval) continue
+          console.log(`[${this.data.name}] Retrying Connection To Bad Node: ${id}`)
+
+          try {
+            let node = client.lavalink.nodeManager.nodes.get(id)
+
+            if (!node) {
+              node = client.lavalink.nodeManager.createNode({
+                host: details.host,
+                port: details.port,
+                authorization: details.authorization,
+                id: details.id,
+              })
+            }
+
+            client.lavalink.bmdManager.states.bad.set(id, {
+              node,
+              movedAt: Date.now(),
+              details,
+            })
+
+            try {
+              await node.connect()
+            } catch (err) {
+              console.warn(`[${this.data.name}] Reconnection To Bad Node Failed: ${id}, ${err}`)
+            }
+          } catch (err) {
+            console.warn(`[${this.data.name}] Something Went Wrong Trying To Connect To Node ${id}, ${err}`)
+          }
+        }
+      }, retryInterval)
+    } catch {
+      console.log(`[${this.data.name}] Uhhhhhh, Something Went Wrong`)
+    }
+  },
+}

@@ -7,6 +7,7 @@ module.exports = {
   info: {
     source: "https://github.com/RatWasHere/bmods/tree/master/Actions",
     creator: "TheMonDon",
+    donate: "https://cisn.xyz/Donate",
   },
   UI: [
     {
@@ -51,7 +52,7 @@ module.exports = {
   ],
 
   async run(values, interaction, client, bridge) {
-    const Canvas = client.getMods().require("canvas");
+    const Canvas = await client.getMods().require("canvas");
     const imageData = await bridge.getImage(values.image);
     const imageToDraw = await bridge.getImage(values.imageToDraw);
 
@@ -82,7 +83,7 @@ module.exports = {
         bridge.store(values.store, buffer);
       })
       .catch((error) => {
-        console.error("Error:", error);
+        console.error("Canvas Draw Image Error:", error);
       });
   },
 };

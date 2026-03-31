@@ -7,6 +7,7 @@ module.exports = {
   info: {
     source: "https://github.com/RatWasHere/bmods/tree/master/Actions",
     creator: "TheMonDon",
+    donate: "https://cisn.xyz/Donate",
   },
   UI: [
     {
@@ -51,18 +52,18 @@ module.exports = {
   ],
 
   async run(values, interaction, client, bridge) {
-    const Canvas = client.getMods().require("canvas");
+    const Canvas = await client.getMods().require("canvas");
 
     try {
       const width = Math.max(1, parseInt(bridge.transf(values.width), 10));
       const height = Math.max(1, parseInt(bridge.transf(values.height), 10));
       const percent = Math.min(
         100,
-        Math.max(0, parseFloat(bridge.transf(values.percent))),
+        Math.max(0, parseFloat(bridge.transf(values.percent)))
       );
       const lineWidth = Math.min(
         height,
-        Math.max(1, parseInt(bridge.transf(values.lineWidth), 10)),
+        Math.max(1, parseInt(bridge.transf(values.lineWidth), 10))
       );
       const isRound = values.lineCap?.type === "1";
 
@@ -105,8 +106,7 @@ module.exports = {
       const buffer = canvas.toBuffer();
       bridge.store(values.store, buffer);
     } catch (error) {
-      console.error("Error:", error);
-      throw error;
+      console.error("Canvas Generate Progress Bar Error:", error);
     }
   },
 };

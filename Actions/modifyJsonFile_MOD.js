@@ -1,0 +1,327 @@
+modVersion = "v1.3.5"
+module.exports = {
+  data: {
+    name: "Modify JSON File",
+  },
+  aliases: ["Edit JSON File"],
+  modules: ["node:path", "node:fs"],
+  category: "JSON",
+  info: {
+    source: "https://github.com/slothyacedia/bmods-acedia/tree/main/Actions",
+    creator: "Acedia",
+    donate: "https://ko-fi.com/slothyacedia",
+  },
+  UI: [
+    {
+      element: "input",
+      storeAs: "pathToJson",
+      name: "Path To JSON File",
+      placeholder: "path/to/file.json",
+    },
+    {
+      element: "typedDropdown",
+      storeAs: "jsonAction",
+      name: "Action",
+      choices: {
+        create: { name: "Create/Replace Element", field: true, placeholder: "path.to.element" },
+        delete: { name: "Delete Element", field: true, placeholder: "path.to.element" },
+      },
+    },
+    {
+      element: "largeInput",
+      storeAs: "content",
+      name: "Content",
+    },
+    "-",
+    {
+      element: "html",
+      html: `
+        <button
+          style="width: fit-content"
+          class="hoverablez"
+          onclick="
+                  const textArea = document.getElementById('content');
+                  const content = textArea.value;
+                  const btext = this.querySelector('#buttonText');
+
+                  if (!this.dataset.fixedSize) {
+                    this.style.width = this.offsetWidth + 'px';
+                    this.style.height = this.offsetHeight + 'px';
+                    this.dataset.fixedSize = 'true';
+                  }
+
+                  try {
+                    let parsed = JSON.parse(content);
+                    let formatted = JSON.stringify(parsed, null, 2);
+                    this.style.background = '#28a745';
+                    btext.textContent = 'Valid';
+                    if (content !== formatted){
+                      textArea.value = formatted;
+                      let textLength = textArea.value.length;
+                      textArea.focus();
+                      textArea.setSelectionRange(textLength, textLength);
+                    }
+                  } catch (error) {
+                    this.style.background = '#dc3545';
+                    btext.textContent = 'Invalid';
+                  }
+                  setTimeout(() => {
+                    this.style.background = '';
+                    btext.textContent = 'Validate JSON';
+                  }, 500);
+                "
+        >
+          <btext id="buttonText"> Validate JSON </btext>
+        </button>
+      `,
+    },
+    {
+      element: "text",
+      text: `Wrap your variables with double quotes ("), i.e "\${tempVars('varName')}".`,
+    },
+    "-",
+    {
+      element: "toggleGroup",
+      storeAs: ["createIfMissing", "prettyPrint"],
+      nameSchemes: ["Create File If Missing", "Pretty Print?"],
+    },
+    {
+      element: "store",
+      storeAs: "modifiedJson",
+      name: "Store Modified JSON As",
+    },
+    "-",
+    {
+      element: "text",
+      text: modVersion,
+    },
+  ],
+
+  subtitle: (values, constants, thisAction) => {
+    // To use thisAction, constants must also be present
+    return `Modify Contents Of ${values.pathToJson}`
+  },
+
+  script: (values) => {
+    function refelm(skipAnimation) {
+      if (values.data.jsonAction.type == "create") {
+        values.UI[2].element = "largeInput"
+        values.UI[3].element = "-"
+        values.UI[4].element = "html"
+        values.UI[5].element = "text"
+      } else {
+        values.UI[2].element = ""
+        values.UI[3].element = ""
+        values.UI[4].element = ""
+        values.UI[5].element = ""
+      }
+
+      setTimeout(
+        () => {
+          values.updateUI()
+        },
+        skipAnimation ? 1 : values.commonAnimation * 100,
+      )
+    }
+
+    refelm(true)
+
+    values.events.on("change", () => {
+      refelm()
+    })
+  },
+
+  compatibility: ["Any"],
+
+  async run(values, message, client, bridge) {
+    // This is the exact order of things required, other orders will brick
+    for (const moduleName of this.modules) {
+      await client.getMods().require(moduleName)
+    }
+
+    const path = require("node:path")
+    const fs = require("node:fs")
+
+    const botData = require("../data.json")
+    const workingDir = path.normalize(process.cwd())
+    let projectFolder
+    if (
+      workingDir.includes(path.join("common", "Bot Maker For Discord")) ||
+      workingDir.endsWith("Bot Maker For Discord") ||
+      fs.existsSync(path.join(workingDir, "AppData", "Kits", "EditorBones.js")) ||
+      fs.existsSync(path.join(workingDir, "linux-data")) ||
+      fs.existsSync(path.join(workingDir, "mac-data")) ||
+      fs.existsSync(path.join(workingDir, "resources", "app.asar.unpacked", "app.asar")) ||
+      (fs.existsSync(path.join(workingDir, "stage1")) &&
+        fs.existsSync(path.join(workingDir, "stage2")) &&
+        fs.existsSync(path.join(workingDir, "stage3")) &&
+        fs.existsSync(path.join(workingDir, "stage4")) &&
+        fs.existsSync(path.join(workingDir, "stage5")))
+    ) {
+      projectFolder = botData.prjSrc
+    } else {
+      projectFolder = workingDir
+    }
+
+    let pathToJson = path.normalize(bridge.transf(values.pathToJson))
+
+    let fullPath = path.join(path.normalize(projectFolder), pathToJson)
+    let parsedPath = path.parse(fullPath)
+    fullPath = path.join(parsedPath.dir, parsedPath.name + ".json")
+
+    const forbiddenFiles = [
+      path.normalize("AppData/Toolkit/storedData.json"),
+      path.normalize("AppData/data.json"),
+      path.normalize("vars.json"),
+      path.normalize("schedules"),
+    ]
+    if (forbiddenFiles.some((fp) => fullPath.endsWith(fp))) {
+      return console.error(`[${this.data.name}] Essential Files Are Not To Be Messed With!!`)
+    }
+
+    if (!fs.existsSync(fullPath)) {
+      if (values.createIfMissing === true) {
+        let dirName = path.dirname(fullPath)
+        if (!fs.existsSync(dirName)) {
+          fs.mkdirSync(dirName, { recursive: true })
+        }
+
+        fs.writeFileSync(fullPath, JSON.stringify({}, null))
+      } else {
+        return console.error(`[${this.data.name}] File ${fullPath} Doesn't Exist!`)
+      }
+    }
+
+    const originalFileContent = fs.readFileSync(fullPath, "utf8")
+    let jsonObject
+    let isJson
+
+    function cleanEmpty(obj, keys) {
+      for (let i = keys.length - 1; i >= 0; i--) {
+        let key = keys[i]
+        let parent = keys.slice(0, i).reduce((o, k) => o?.[k], obj)
+        if (parent && Object.keys(parent[key] || {}).length === 0) {
+          delete parent[key]
+        } else {
+          break
+        }
+      }
+    }
+
+    function sanitizeInput(input) {
+      const sanitizeArrays = (str) => {
+        return str.replace(/\[([^\]]*)\]/g, (match, inner) => {
+          const sanitized = inner
+            .split(",")
+            .map((el) => {
+              el = el.trim()
+              if (!el) return null
+              return '"' + el.replace(/^["']|["']$/g, "").replace(/"/g, '\\"') + '"'
+            })
+            .filter((el) => el !== null)
+            .join(", ")
+          return `[${sanitized}]`
+        })
+      }
+
+      const escapeControlChars = (str) => {
+        return str.replace(/"(?:\\.|[^"\\])*"/g, (match) => {
+          const inner = match.slice(1, -1)
+          const escaped = inner
+            .replace(/\\(?!["\\/bfnrtu])/g, "\\\\") // stray backslashes
+            .replace(/(?<!\\)\n/g, "\\n")
+            .replace(/(?<!\\)\r/g, "\\n")
+            .replace(/(?<!\\)\t/g, "\\t")
+            .replace(/[\u0000-\u001F]/g, (ch) => "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0"))
+          return `"${escaped}"`
+        })
+      }
+
+      return escapeControlChars(sanitizeArrays(input))
+    }
+
+    try {
+      jsonObject = JSON.parse(originalFileContent)
+      isJson = true
+    } catch (err) {
+      console.error(`[${this.data.name}] Invalid Original JSON Content: ${err.message}`)
+      jsonObject = originalFileContent
+      isJson = false
+      return
+    }
+
+    let actionType = bridge.transf(values.jsonAction.type)
+    let objectPath = bridge.transf(values.jsonAction.value).trim() || ""
+    let rawContent = bridge.transf(values.content)
+
+    objectPath = objectPath.replaceAll(/\.{2,}/g, ".")
+    if (objectPath.startsWith(".")) {
+      objectPath = objectPath.slice(1)
+    }
+
+    if (objectPath.startsWith(".") || objectPath.endsWith(".")) {
+      return console.error(`[${this.data.name}] Invalid Path: "${bridge.transf(values.jsonAction.values)}"`)
+    }
+
+    const keys = objectPath.split(".")
+    const lastKey = keys.pop()
+    let target = jsonObject
+
+    for (const key of keys) {
+      if (typeof target[key] !== "object" || target[key] === null) {
+        target[key] = {}
+      }
+      target = target[key]
+    }
+
+    let parsedContent = undefined
+    if (actionType !== "delete") {
+      try {
+        parsedContent = JSON.parse(rawContent)
+      } catch {
+        rawContent = sanitizeInput(rawContent)
+        if (!/^\s*(\[|\{)/.test(rawContent)) {
+          rawContent = `"${rawContent.replace(/^["']|["']$/g, "").replace(/"/g, '\\"')}"`
+        }
+        try {
+          parsedContent = JSON.parse(rawContent)
+        } catch (error) {
+          return console.error(`[${this.data.name}] Invalid JSON Content: ${error.message}`)
+        }
+      }
+    }
+
+    if (jsonObject && isJson == true) {
+      switch (actionType) {
+        case "create": {
+          if (!objectPath) {
+            jsonObject = parsedContent
+          } else {
+            target[lastKey] = parsedContent
+          }
+          break
+        }
+
+        case "delete": {
+          if (!objectPath) {
+            jsonObject = {}
+          } else {
+            delete target[lastKey]
+            cleanEmpty(jsonObject, keys)
+          }
+          break
+        }
+      }
+    }
+
+    let finalContent
+    if (values.prettyPrint === true) {
+      finalContent = JSON.stringify(jsonObject, null, 2)
+    } else {
+      finalContent = JSON.stringify(jsonObject, null)
+    }
+
+    fs.writeFileSync(fullPath, finalContent)
+    bridge.store(values.modifiedJson, jsonObject)
+  },
+}

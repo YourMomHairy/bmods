@@ -1,0 +1,215 @@
+modVersion = "v1.1.0"
+module.exports = {
+  data: {
+    name: "MongoDB Query Collection",
+  },
+  aliases: ["Query MongoDB"],
+  modules: ["mongodb"],
+  category: "MongoDB",
+  info: {
+    source: "https://github.com/slothyacedia/bmods-acedia/tree/main/Actions",
+    creator: "Acedia",
+    donate: "https://ko-fi.com/slothyacedia",
+  },
+  UI: [
+    {
+      element: "variable",
+      storeAs: "mongoClient",
+      name: "MongoDB Connection",
+    },
+    {
+      element: "inputGroup",
+      storeAs: ["database", "collection"],
+      nameSchemes: ["Database", "Collection"],
+    },
+    "-",
+    {
+      element: "typedDropdown",
+      storeAs: "find",
+      name: "Find How Many Items",
+      choices: {
+        single: { name: "Single (JSON)", field: false },
+        multi: { name: "Multiple (JSON Array)", field: false },
+      },
+    },
+    "_",
+    {
+      element: "menu",
+      storeAs: "attributes",
+      name: "List Of Attributes",
+      types: { attribute: "attribute" },
+      max: 1000,
+      UItypes: {
+        attribute: {
+          data: {},
+          name: "Attribute",
+          preview:
+            "`${option.data.attributeKey}: ${option.data.attributeValue.type}(${option.data.attributeValue.value ? option.data.attributeValue.value : option.data.attributeValue})`",
+          UI: [
+            {
+              element: "input",
+              storeAs: "attributeKey",
+              name: "Attribute",
+              placeholder: "dot.notation.supported",
+            },
+            {
+              element: "typedDropdown",
+              storeAs: "attributeValue",
+              name: "Equals",
+              choices: {
+                text: { name: "Text", field: true },
+                number: { name: "Number", field: true },
+                boolean: { name: "Boolean (true / false)", field: true },
+                regex: { name: "Regex", field: true },
+                objectId: { name: "_id", field: true },
+              },
+            },
+          ],
+        },
+      },
+      help: {
+        title: "Attributes",
+        UI: [
+          {
+            element: "text",
+            text: `You Can Input 0 Attributes And It'll Filter Nothing`,
+          },
+          "_",
+          {
+            element: "text",
+            text: `Select "Single" And It'll Return The Latest Entry`,
+          },
+          {
+            element: "text",
+            text: `Select "Multiple" And It'll Return The Entire Collection`,
+          },
+        ],
+      },
+    },
+    "-",
+    {
+      element: "toggle",
+      storeAs: "stringify",
+      name: "Stringify Result",
+    },
+    "_",
+    {
+      element: "store",
+      storeAs: "result",
+      name: "Store Result As",
+    },
+    "-",
+    {
+      element: "text",
+      text: modVersion,
+    },
+  ],
+
+  subtitle: (values, constants, thisAction) => {
+    // To use thisAction, constants must also be present
+    return `Find MongoDB [${values.database}:${values.collection}] Document${values.find.type == "single" ? "" : "s"} That Matches ${
+      values.attributes.length
+    } Attributes`
+  },
+
+  compatibility: ["Any"],
+
+  async run(values, message, client, bridge) {
+    // This is the exact order of things required, other orders will brick
+    for (const moduleName of this.modules) {
+      await client.getMods().require(moduleName)
+    }
+
+    const mongodb = require("mongodb")
+    const mongoClient = bridge.get(values.mongoClient)
+    let databaseName = null
+    let collectionName = bridge.transf(values.collection).trim()
+    if (!collectionName || !mongoClient) {
+      return console.log(`[${this.data.name}] A MongoDB Connection & A Collection Is Needed`)
+    }
+    if (values.database) {
+      databaseName = bridge.transf(values.database).trim()
+    }
+    let database = mongoClient.db(databaseName)
+    let collection = database.collection(collectionName)
+
+    let attributes = {}
+
+    for (let attribute of values.attributes) {
+      let attributeData = attribute.data
+      let attributeKey = bridge.transf(attributeData.attributeKey)
+      let attributeValue = bridge.transf(attributeData.attributeValue.value)
+      let attributeValueType = bridge.transf(attributeData.attributeValue.type)
+      switch (attributeValueType) {
+        case "text": {
+          break
+        }
+
+        case "number": {
+          if (!isNaN(Number(attributeValue))) {
+            attributeValue = Number(attributeValue)
+          } else {
+            console.log(`[${this.data.name}] ${attributeValue} Is Not A Number`)
+          }
+          break
+        }
+
+        case "boolean": {
+          if (typeof attributeValue === "boolean") {
+          } else if (/^(true|false)$/i.test(attributeValue)) {
+            attributeValue = attributeValue.toLowerCase() === "true"
+          } else {
+            console.log(`[${this.data.name}] ${attributeValue} Is Not A Boolean`)
+          }
+          break
+        }
+
+        case "regex": {
+          try {
+            attributeValue = new RegExp(attributeValue, "i")
+          } catch (err) {
+            console.log(`[${this.data.name}] Invalid Regex: ${err.message}`)
+            attributeValue = bridge.transf(attributeData.attributeValue.value)
+          }
+          break
+        }
+
+        case "objectId": {
+          try {
+            attributeValue = new mongodb.ObjectId(attributeValue)
+          } catch (err) {
+            console.log(`[${this.data.name}] ${attributeValue}; ${err.message}`)
+            attributeValue = bridge.transf(attributeData.attributeValue.value)
+          }
+          break
+        }
+      }
+
+      attributes[attributeKey] = attributeValue
+    }
+
+    let result
+    switch (values.find.type) {
+      case "single": {
+        result = await collection.findOne(attributes)
+        if (result == null) {
+          result = undefined
+        }
+        break
+      }
+
+      case "multi": {
+        result = await collection.find(attributes).toArray()
+        if (result.length == 0) {
+          result = undefined
+        }
+        break
+      }
+    }
+
+    if (values.stringify == true && result != undefined) {
+      result = JSON.stringify(result)
+    }
+    bridge.store(values.result, result)
+  },
+}
